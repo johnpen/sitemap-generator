@@ -64,34 +64,6 @@ async function generateSitemap(url) {
             return null;
         }
     }
-
-    // Function to create a URL element with proper XML escaping
-    function createUrlElement(url) {
-        try {
-            const urlElement = builder.ele('url');
-            urlElement.ele('loc', url);
-            urlElement.ele('changefreq', 'monthly');
-            urlElement.ele('priority', '0.8');
-            return urlElement.up();
-        } catch (error) {
-            console.error(`Error creating XML element for URL ${url}:`, error);
-            return null;
-        }
-    }
-
-    // Function to create a URL element with proper XML escaping
-    function createUrlElement(url) {
-        try {
-            const urlElement = builder.ele('url');
-            urlElement.ele('loc', url);
-            urlElement.ele('changefreq', 'monthly');
-            urlElement.ele('priority', '0.8');
-            return urlElement.up();
-        } catch (error) {
-            console.error(`Error creating XML element for URL ${url}:`, error);
-            return null;
-        }
-    }
     const sitemapUrls = []; // Track URLs for progress logging
     const maxAttempts = 5;
     const maxPagesPerParent = 10;
