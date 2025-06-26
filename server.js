@@ -86,6 +86,7 @@ async function generateSitemap(url) {
         encoding: 'UTF-8',
         standalone: true
     }).ele('urlset', { xmlns: 'http://www.sitemaps.org/schemas/sitemap/0.9' });
+    const sitemapUrls = []; // Track URLs for progress logging
     const maxAttempts = 5;
     const maxPagesPerParent = 10;
     const maxConcurrentRequests = 5; // Number of concurrent requests
@@ -266,12 +267,14 @@ async function generateSitemap(url) {
                         // Process the URL
                         const result = await crawlUrl(url);
                         
-                        // Add current URL to sitemap regardless of success
-                        sitemapUrls.push({
-                            url: result.url,
-                            changefreq: 'monthly',
-                            priority: 0.8
-                        });
+                        // Add current URL to sitemap
+                        if (!addedUrls.has(result.url)) {
+                            const urlElement = builder.ele('url');
+                            urlElement.ele('loc', result.url);
+                            urlElement.ele('changefreq', 'monthly');
+                            urlElement.ele('priority', '0.8');
+                            addedUrls.add(result.url);
+                        }
 
                         // Log progress
                         console.log(`Processed: ${url}`);
