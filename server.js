@@ -6,7 +6,7 @@ const cors = require('cors');
 
 const app = express();
 app.set('trust proxy', true);
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3002;
 const rateLimit = require('express-rate-limit');
 
 // Add rate limiting to prevent overloading the website
@@ -26,23 +26,6 @@ app.use(limiter);
 
 app.use(cors());
 app.use(express.json());
-
-// API endpoint to generate sitemap
-app.post('/generate-sitemap', async (req, res) => {
-    try {
-        const { url } = req.body;
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
-        }
-
-        const sitemapXml = await generateSitemap(url);
-        res.header('Content-Type', 'application/xml');
-        res.send(sitemapXml);
-    } catch (error) {
-        console.error('Error in POST endpoint:', error);
-        res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
-    }
-});
 
 // Helper function to extract domain from URL
 function getDomain(url) {
@@ -209,7 +192,6 @@ async function generateSitemap(url) {
             visitedUrls.add(url);
         } catch (error) {
             console.error(`Error processing ${url}:`, error);
-
         }
     }
 
@@ -319,6 +301,7 @@ async function generateSitemap(url) {
         console.error('Error in main crawling loop:', error);
         return builder.end({ prettyPrint: true });
     }
+}
 
 // API endpoint to generate sitemap
 app.post('/generate-sitemap', async (req, res) => {
@@ -340,5 +323,5 @@ app.post('/generate-sitemap', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
     console.log('To generate a sitemap, use:');
-    console.log('curl -X POST http://localhost:3000/generate-sitemap -H \"Content-Type: application/json\" -d \"{\"url\": \"https://example.com\"}\"\"');
-})};
+    console.log('curl -X POST http://localhost:3001/generate-sitemap -H "Content-Type: application/json" -d "{\"url\": \"https://example.com\"}"');
+});
