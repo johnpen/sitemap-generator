@@ -78,6 +78,20 @@ async function generateSitemap(url) {
             return null;
         }
     }
+
+    // Function to create a URL element with proper XML escaping
+    function createUrlElement(url) {
+        try {
+            const urlElement = builder.ele('url');
+            urlElement.ele('loc', url);
+            urlElement.ele('changefreq', 'monthly');
+            urlElement.ele('priority', '0.8');
+            return urlElement.up();
+        } catch (error) {
+            console.error(`Error creating XML element for URL ${url}:`, error);
+            return null;
+        }
+    }
     const sitemapUrls = []; // Track URLs for progress logging
     const maxAttempts = 5;
     const maxPagesPerParent = 10;
@@ -225,15 +239,9 @@ async function generateSitemap(url) {
 
             // Only add URL to sitemap if it hasn't been added before
             if (!addedUrls.has(url)) {
-                try {
-                    const urlElement = builder.ele('url');
-                    urlElement.ele('loc', url);
-                    urlElement.ele('changefreq', 'monthly');
-                    urlElement.ele('priority', '0.8');
-                    urlElement.up();
+                const urlElement = createUrlElement(url);
+                if (urlElement) {
                     addedUrls.add(url);
-                } catch (error) {
-                    console.error(`Error adding URL to sitemap: ${url}`, error);
                 }
             }
 
@@ -280,15 +288,9 @@ async function generateSitemap(url) {
                         
                         // Add current URL to sitemap
                         if (!addedUrls.has(result.url)) {
-                            try {
-                                const urlElement = builder.ele('url');
-                                urlElement.ele('loc', result.url);
-                                urlElement.ele('changefreq', 'monthly');
-                                urlElement.ele('priority', '0.8');
-                                urlElement.up();
+                            const urlElement = createUrlElement(result.url);
+                            if (urlElement) {
                                 addedUrls.add(result.url);
-                            } catch (error) {
-                                console.error(`Error adding URL to sitemap: ${result.url}`, error);
                             }
                         }
 
