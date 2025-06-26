@@ -56,8 +56,6 @@ async function generateSitemap(url) {
         try {
             const urlElement = builder.ele('url');
             urlElement.ele('loc').txt(url);
-            urlElement.ele('changefreq', 'monthly');
-            urlElement.ele('priority', '0.8');
             return urlElement.up();
         } catch (error) {
             console.error(`Error creating XML element for URL ${url}:`, error);
