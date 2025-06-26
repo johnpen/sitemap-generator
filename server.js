@@ -27,7 +27,7 @@ app.use(limiter);
 app.use(cors());
 app.use(express.json());
 
-// POST endpoint for generating sitemap
+// API endpoint to generate sitemap
 app.post('/generate-sitemap', async (req, res) => {
     try {
         const { url } = req.body;
@@ -40,23 +40,6 @@ app.post('/generate-sitemap', async (req, res) => {
         res.send(sitemapXml);
     } catch (error) {
         console.error('Error in POST endpoint:', error);
-        res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
-    }
-});
-
-// GET endpoint for generating sitemap
-app.get('/generate-sitemap', async (req, res) => {
-    try {
-        const { url } = req.query;
-        if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
-        }
-
-        const sitemapXml = await generateSitemap(url);
-        res.header('Content-Type', 'application/xml');
-        res.send(sitemapXml);
-    } catch (error) {
-        console.error('Error in GET endpoint:', error);
         res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
     }
 });
