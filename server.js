@@ -1,7 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const sitemap = require('sitemap');
+const XMLDocument = require('xmldoc').XMLDocument;
 const cors = require('cors');
 
 const app = express();
@@ -81,7 +81,10 @@ async function generateSitemap(url) {
     const baseUrl = url;
     const visitedUrls = new Set();
     const urlsToVisit = new Set([url]);
-    const sitemap = new sitemap.Sitemap();
+    const sitemapDoc = new XMLDocument();
+    const urlset = sitemapDoc.createElement('urlset');
+    urlset.setAttribute('xmlns', 'http://www.sitemaps.org/schemas/sitemap/0.9');
+    sitemapDoc.appendChild(urlset);
     const maxAttempts = 5;
     const maxPagesPerParent = 10;
     const maxConcurrentRequests = 5; // Number of concurrent requests
@@ -215,11 +218,11 @@ async function generateSitemap(url) {
 
             // Only add URL to sitemap if it hasn't been added before
             if (!addedUrls.has(url)) {
-                sitemap.add({
-                    url: url,
-                    changefreq: 'monthly',
-                    priority: 0.8
-                });
+                const urlElement = sitemapDoc.createElement('url');
+                const loc = sitemapDoc.createElement('loc');
+                loc.textContent = url;
+                urlElement.appendChild(loc);
+                urlset.appendChild(urlElement);
                 addedUrls.add(url);
             }
 
