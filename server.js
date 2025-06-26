@@ -332,7 +332,10 @@ async function generateSitemap(url) {
         }
 
         return builder.end({ prettyPrint: true });
-}
+    } catch (error) {
+        console.error('Error in main crawling loop:', error);
+        return builder.end({ prettyPrint: true });
+    }
 
 // API endpoint to generate sitemap
 app.post('/generate-sitemap', async (req, res) => {
