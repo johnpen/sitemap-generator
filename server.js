@@ -265,6 +265,7 @@ async function generateSitemap(url) {
                                 addedUrls.add(result.url);
                             }
                         }
+                          
 
                         // Log progress
                         console.log(`Processed: ${url}`);
