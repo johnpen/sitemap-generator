@@ -218,7 +218,7 @@ async function generateSitemap(url) {
             visitedUrls.add(url);
         } catch (error) {
             console.error(`Error processing ${url}:`, error);
-            continue;
+
         }
     }
 
