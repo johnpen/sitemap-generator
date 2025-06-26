@@ -12,7 +12,14 @@ const rateLimit = require('express-rate-limit');
 // Add rate limiting to prevent overloading the website
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100 // limit each IP to 100 requests per windowMs
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    store: new rateLimit.MemoryStore(), // Use memory store for rate limiting
+    keyGenerator: function (req) {
+        // Use the real IP address from Heroku's proxy
+        return req.headers['x-forwarded-for'] || req.ip;
+    }
 });
 
 app.use(limiter);
