@@ -340,5 +340,5 @@ app.post('/generate-sitemap', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
     console.log('To generate a sitemap, use:');
-    console.log('curl -X POST http://localhost:3000/generate-sitemap -H \"Content-Type: application/json\" -d \"{\"url\": \"https://example.com\"}\"\'');
-});
+    console.log('curl -X POST http://localhost:3000/generate-sitemap -H \"Content-Type: application/json\" -d \"{\"url\": \"https://example.com\"}\"\"');
+})};
