@@ -1,7 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { XMLBuilder } = require('xmlbuilder2');
+const { create } = require('xmlbuilder2');
 const cors = require('cors');
 
 const app = express();
@@ -81,11 +81,11 @@ async function generateSitemap(url) {
     const baseUrl = url;
     const visitedUrls = new Set();
     const urlsToVisit = new Set([url]);
-    const builder = new XMLBuilder({
-        prettyPrint: true,
-        version: '1.0'
-    });
-    const urlset = builder.ele('urlset', { xmlns: 'http://www.sitemaps.org/schemas/sitemap/0.9' });
+    const builder = create({
+        version: '1.0',
+        encoding: 'UTF-8',
+        standalone: true
+    }).ele('urlset', { xmlns: 'http://www.sitemaps.org/schemas/sitemap/0.9' });
     const maxAttempts = 5;
     const maxPagesPerParent = 10;
     const maxConcurrentRequests = 5; // Number of concurrent requests
@@ -219,7 +219,7 @@ async function generateSitemap(url) {
 
             // Only add URL to sitemap if it hasn't been added before
             if (!addedUrls.has(url)) {
-                const urlElement = urlset.ele('url');
+                const urlElement = builder.ele('url');
                 urlElement.ele('loc', url);
                 addedUrls.add(url);
             }
@@ -356,9 +356,8 @@ app.post('/generate-sitemap', async (req, res) => {
         }
 
         const sitemapObj = await generateSitemap(url);
-        const sitemapXml = sitemapObj.toString();
         res.header('Content-Type', 'application/xml');
-        res.send(sitemapXml);
+        res.send(sitemapObj.end({ prettyPrint: true }));
     } catch (error) {
         console.error('Error details:', {
             message: error.message,
