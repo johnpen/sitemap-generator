@@ -50,6 +50,15 @@ async function generateSitemap(url) {
         encoding: 'UTF-8',
         standalone: true
     }).ele('urlset', { xmlns: 'http://www.sitemaps.org/schemas/sitemap/0.9' });
+
+    // Function to create a URL element with proper XML escaping
+    function createUrlElement(url) {
+        return builder.ele('url')
+            .ele('loc', url)
+            .ele('changefreq', 'monthly')
+            .ele('priority', '0.8')
+            .up();
+    }
     const sitemapUrls = []; // Track URLs for progress logging
     const maxAttempts = 5;
     const maxPagesPerParent = 10;
@@ -184,8 +193,7 @@ async function generateSitemap(url) {
 
             // Only add URL to sitemap if it hasn't been added before
             if (!addedUrls.has(url)) {
-                const urlElement = builder.ele('url');
-                urlElement.ele('loc', url);
+                createUrlElement(url);
                 addedUrls.add(url);
             }
 
@@ -232,10 +240,7 @@ async function generateSitemap(url) {
                         
                         // Add current URL to sitemap
                         if (!addedUrls.has(result.url)) {
-                            const urlElement = builder.ele('url');
-                            urlElement.ele('loc', result.url);
-                            urlElement.ele('changefreq', 'monthly');
-                            urlElement.ele('priority', '0.8');
+                            createUrlElement(result.url);
                             addedUrls.add(result.url);
                         }
 
