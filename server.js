@@ -63,7 +63,7 @@ async function generateSitemap(url) {
         }
     }
     const sitemapUrls = []; // Track URLs for progress logging
-    const maxAttempts = 5;
+    const maxAttempts = 999;
     const maxPagesPerParent = 10;
     const maxConcurrentRequests = 5; // Number of concurrent requests
     const rateLimitWindow = 1000; // 1 second window
