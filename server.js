@@ -287,7 +287,7 @@ async function generateSitemap(url) {
                         return result;
                     } catch (error) {
                         console.error(`Error crawling ${url}:`, {
-                            message: error.message,
+                            message: JSON.stringify(error),
                             status: error?.response?.status,
                             statusText: error?.response?.statusText,
                             headers: error?.response?.headers
