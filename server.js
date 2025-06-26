@@ -5,6 +5,7 @@ const sitemap = require('sitemap');
 const cors = require('cors');
 
 const app = express();
+app.set('trust proxy', true);
 const port = process.env.PORT || 3000;
 const rateLimit = require('express-rate-limit');
 
