@@ -36,9 +36,8 @@ app.post('/generate-sitemap', async (req, res) => {
         }
 
         const sitemapXml = await generateSitemap(url);
-        // Convert XML to string before sending
         res.header('Content-Type', 'application/xml');
-        res.send(sitemapXml.toString());
+        res.send(sitemapXml);
     } catch (error) {
         console.error('Error in POST endpoint:', error);
         res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
@@ -54,9 +53,8 @@ app.get('/generate-sitemap', async (req, res) => {
         }
 
         const sitemapXml = await generateSitemap(url);
-        // Convert XML to string before sending
         res.header('Content-Type', 'application/xml');
-        res.send(sitemapXml.toString());
+        res.send(sitemapXml);
     } catch (error) {
         console.error('Error in GET endpoint:', error);
         res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
@@ -333,21 +331,7 @@ async function generateSitemap(url) {
             }
         }
 
-        // Create and return sitemap
-        const sitemapXml = sitemap.createSitemap({
-            hostname: baseUrl,
-            urls: sitemapUrls
-        });
-
-        console.log(`Generated sitemap with ${sitemapUrls.length} URLs`);
-        return builder;
-    } catch (error) {
-        console.error('Error in main crawling loop:', error);
-        return sitemap.createSitemap({
-            hostname: baseUrl,
-            urls: []
-        });
-    }
+        return builder.end({ prettyPrint: true });
 }
 
 // API endpoint to generate sitemap
@@ -358,19 +342,12 @@ app.post('/generate-sitemap', async (req, res) => {
             return res.status(400).json({ error: 'URL is required' });
         }
 
-        const sitemapObj = await generateSitemap(url);
+        const sitemapXml = await generateSitemap(url);
         res.header('Content-Type', 'application/xml');
-        res.send(sitemapObj.end({ prettyPrint: true }));
+        res.send(sitemapXml);
     } catch (error) {
-        console.error('Error details:', {
-            message: error.message,
-            name: error.name,
-            stack: error.stack
-        });
-        res.status(500).json({ 
-            error: 'Failed to generate sitemap',
-            details: error.message
-        });
+        console.error('Error in POST endpoint:', error);
+        res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
     }
 });
 
