@@ -65,9 +65,9 @@ async function generateSitemap(url) {
     const sitemapUrls = []; // Track URLs for progress logging
     const maxAttempts = 200;
     const maxPagesPerParent = 15; // Maximum child pages per parent URL (not counting duplicates)
-    const maxConcurrentRequests = 5; // Number of concurrent requests
-    const rateLimitWindow = 1000; // 1 second window
-    const maxRequestsPerWindow = 5; // Maximum requests per second
+    const maxConcurrentRequests = 10; // Number of concurrent requests
+    const rateLimitWindow = 300; // 1 second window
+    const maxRequestsPerWindow = 50; // Maximum requests per second
     const maxDepth = 5; // Maximum depth to crawl
     let attempts = 0;
     let currentDepth = 0;
