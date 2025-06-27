@@ -62,6 +62,18 @@ async function generateSitemap(url) {
             return null;
         }
     }
+
+    // Function to create a URL element with proper XML escaping
+    function createUrlElement(url) {
+        try {
+            const urlElement = builder.ele('url');
+            urlElement.ele('loc').txt(url);
+            return urlElement.up();
+        } catch (error) {
+            console.error(`Error creating XML element for URL ${url}:`, error);
+            return null;
+        }
+    }
     const sitemapUrls = []; // Track URLs for progress logging
     const maxAttempts = 200;
     const maxPagesPerParent = 15; // Maximum child pages per parent URL (not counting duplicates)
@@ -94,12 +106,15 @@ async function generateSitemap(url) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             if(!visitedUrls.has(url)){
                 visitedUrls.add(url);
-          
             }            
-            
             urlsToVisit.delete(url);
             
             console.log(`Crawling URL: ${url}`);
+            
+            // Send progress update
+            if (res) {
+                res.write(`data: ${JSON.stringify({ type: 'progress', url, status: 'crawling' })}\n\n`);
+            }
             
             // Make the request with proper error handling
             const response = await axios.get(url, {
@@ -282,6 +297,18 @@ async function generateSitemap(url) {
                         console.log(`Current depth: ${depth}`);
                         console.log(`Rate limiting status: ${requestCount}/${maxRequestsPerWindow} requests in last ${rateLimitWindow}ms`);
 
+                        // Send progress update
+                        if (res) {
+                            res.write(`data: ${JSON.stringify({ 
+                                type: 'progress', 
+                                url: result.url, 
+                                status: 'processed',
+                                depth,
+                                totalVisited: visitedUrls.size,
+                                queueSize: urlsToVisit.size
+                            })}\n\n`);
+                        }
+
                         // Add to visited URLs
                         visitedUrls.add(url);
                         attempts = 0; // Reset attempts when successful
@@ -297,7 +324,7 @@ async function generateSitemap(url) {
                         return result;
                     } catch (error) {
                         console.error(`Error crawling ${url}:`, {
-                            message: JSON.stringify(error),
+                            message: error.message,
                             status: error?.response?.status,
                             statusText: error?.response?.statusText,
                             headers: error?.response?.headers
@@ -335,11 +362,11 @@ async function generateSitemap(url) {
         return builder.end({ prettyPrint: false });
     } catch (error) {
         console.error('Error in main crawling loop:', error);
-        return builder.end({ prettyPrint: true });
+        return builder.end({ prettyPrint: false });
     }
 }
 
-// API endpoint to generate sitemap
+// POST endpoint for generating sitemap with streaming
 app.post('/generate-sitemap', async (req, res) => {
     try {
         const { url } = req.body;
@@ -347,9 +374,32 @@ app.post('/generate-sitemap', async (req, res) => {
             return res.status(400).json({ error: 'URL is required' });
         }
 
-        const sitemapXml = await generateSitemap(url);
-        res.header('Content-Type', 'application/xml');
-        res.send(sitemapXml);
+        // Set headers for SSE
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        // Create a promise that will resolve when the sitemap is complete
+        const sitemapPromise = generateSitemap(url);
+
+        // Send initial message
+        res.write('data: Starting sitemap generation...\n\n');
+
+        // Handle the sitemap generation
+        sitemapPromise.then(sitemapXml => {
+            // Send final sitemap
+            res.write(`data: ${JSON.stringify({ type: 'complete', sitemap: sitemapXml })}\n\n`);
+            res.end();
+        }).catch(error => {
+            console.error('Error in sitemap generation:', error);
+            res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+            res.end();
+        });
+
+        // Handle client disconnect
+        req.on('close', () => {
+            console.log('Client disconnected');
+        });
     } catch (error) {
         console.error('Error in POST endpoint:', error);
         res.status(500).json({ error: error.message || 'Failed to generate sitemap' });
