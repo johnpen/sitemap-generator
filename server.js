@@ -63,12 +63,12 @@ async function generateSitemap(url) {
         }
     }
     const sitemapUrls = []; // Track URLs for progress logging
-    const maxAttempts = 999;
-    const maxPagesPerParent = 10;
+    const maxAttempts = 200;
+    const maxPagesPerParent = 15; // Maximum child pages per parent URL (not counting duplicates)
     const maxConcurrentRequests = 5; // Number of concurrent requests
     const rateLimitWindow = 1000; // 1 second window
     const maxRequestsPerWindow = 5; // Maximum requests per second
-    const maxDepth = 3; // Maximum depth to crawl
+    const maxDepth = 5; // Maximum depth to crawl
     let attempts = 0;
     let currentDepth = 0;
     let requestCount = 0;
@@ -86,8 +86,18 @@ async function generateSitemap(url) {
     // Function to crawl a URL
     async function crawlUrl(url) {
         try {
+            if(visitedUrls.has(url)){
+                urlsToVisit.delete(url);
+                return;
+            }
             // Add delay between requests to be polite
             await new Promise(resolve => setTimeout(resolve, 1000));
+            if(!visitedUrls.has(url)){
+                visitedUrls.add(url);
+          
+            }            
+            
+            urlsToVisit.delete(url);
             
             console.log(`Crawling URL: ${url}`);
             
@@ -127,6 +137,12 @@ async function generateSitemap(url) {
             console.log(`Found ${$('a').length} links on page ${url}`);
             const childUrls = new Set();
 
+            // Track number of child pages added for this parent
+            let childPagesAdded = 0;
+            
+            // Don't limit child pages for home page
+            const isHomePage = url === baseUrl;
+            
             $('a').each((index, element) => {
                 const href = $(element).attr('href');
                 if (!href) {
@@ -138,11 +154,7 @@ async function generateSitemap(url) {
                 let fullUrl = href;
                 if (!href.startsWith('http')) {
                     try {
-                        const urlObj = new URL(href, baseUrl);
-                        // Remove query parameters and hash
-                        urlObj.search = '';
-                        urlObj.hash = '';
-                        fullUrl = urlObj.href;
+                        fullUrl = new URL(href, baseUrl).href;
                     } catch (e) {
                         console.log(`Skipping invalid URL at index ${index}: ${href}`);
                         return;
@@ -151,71 +163,65 @@ async function generateSitemap(url) {
 
                 // Only add URLs from the same domain
                 if (isSameDomain(baseUrl, fullUrl)) {
-                    try {
-                        const urlObj = new URL(fullUrl);
-                        
-                        // Remove query parameters and hash
-                        urlObj.search = '';
-                        urlObj.hash = '';
-                        
-                        // Remove common tracking parameters
-                        const paramsToRemove = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
-                        paramsToRemove.forEach(param => urlObj.searchParams.delete(param));
-                        
-                        // Remove empty parameters
-                        urlObj.searchParams.forEach((value, key) => {
-                            if (!value) {
-                                urlObj.searchParams.delete(key);
+                    // Clean up URL by removing unnecessary parameters
+                    const urlObj = new URL(fullUrl);
+                    // Remove common tracking parameters
+
+                    urlObj.search = ''
+                    /*
+                    const paramsToRemove = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+                    paramsToRemove.forEach(param => urlObj.searchParams.delete(param));
+                    
+                    // Remove empty parameters
+                    urlObj.searchParams.forEach((value, key) => {
+                     //   if (!value) {
+                            urlObj.searchParams.delete(key);
+                     //   }
+                    }); */
+                    
+                    // Remove trailing slash if not needed
+                    if (urlObj.pathname.endsWith('/') && urlObj.pathname !== '/') {
+                        urlObj.pathname = urlObj.pathname.slice(0, -1);
+                    }
+                    
+                    // Add cleaned URL
+                    const normalizedUrl = urlObj.toString();
+                    if (!visitedUrls.has(normalizedUrl)) {
+                        // Add URL to queue if not already visited
+                        if(!urlsToVisit.has(normalizedUrl)){
+                        urlsToVisit.add(normalizedUrl);
+                        urlDepthMap.set(normalizedUrl, urlDepthMap.get(url) + 1);
+                        console.log(`Added URL to queue: ${normalizedUrl} (depth: ${urlDepthMap.get(normalizedUrl)})`);
+                       
+                        // Only increment counter for non-home pages
+                        if (!isHomePage) {
+                            childPagesAdded++;
+                            
+                            // Stop adding child pages if we've reached the limit
+                            if (childPagesAdded >= maxPagesPerParent) {
+                                console.log(`Reached max child pages (${maxPagesPerParent}) for parent URL: ${url}`);
+                                return false; // Break out of each loop
                             }
-                        });
-                        
-                        // Remove trailing slash if not needed
-                        if (urlObj.pathname.endsWith('/') && urlObj.pathname !== '/') {
-                            urlObj.pathname = urlObj.pathname.slice(0, -1);
                         }
-                        
-                        // Add cleaned URL
-                        const normalizedUrl = urlObj.toString();
-                        if (!visitedUrls.has(normalizedUrl)) {
-                            urlsToVisit.add(normalizedUrl);
-                            urlDepthMap.set(normalizedUrl, urlDepthMap.get(url) + 1);
-                            console.log(`Added URL to queue: ${normalizedUrl} (depth: ${urlDepthMap.get(normalizedUrl)})`);
-                        } else {
-                            console.log(`Skipping already visited URL: ${normalizedUrl}`);
-                        }
-                    } catch (e) {
-                        console.log(`Skipping invalid URL after normalization: ${fullUrl}`);
-                        return;
+                    }
+                    } else {
+                        console.log(`Skipping already visited URL: ${normalizedUrl}`);
                     }
                 }
             });
 
-            // Add common pages
-            const commonPages = [
-                '/about-us',
-                '/contact',
-                '/shipping',
-                '/returns',
-                '/privacy-policy',
-                '/terms-and-conditions'
-            ];
-            
-            commonPages.forEach(page => {
-                const fullUrl = new URL(page, baseUrl).href;
-                if (!visitedUrls.has(fullUrl)) {
-                    urlsToVisit.add(fullUrl);
-                }
-            });
+
 
             // Only add URL to sitemap if it hasn't been added before
             if (!addedUrls.has(url)) {
                 const urlElement = createUrlElement(url);
                 if (urlElement) {
+
                     addedUrls.add(url);
                 }
             }
 
-            visitedUrls.add(url);
+       
         } catch (error) {
             console.error(`Error processing ${url}:`, error);
         }
@@ -225,7 +231,7 @@ async function generateSitemap(url) {
         while (urlsToVisit.size > 0 && attempts < maxAttempts) {
             // Get a batch of URLs to process
             const urlsBatch = Array.from(urlsToVisit).slice(0, maxConcurrentRequests);
-            urlsToVisit.clear();
+           // urlsToVisit.clear();
 
             // Rate limiting
             const currentTime = Date.now();
@@ -250,11 +256,15 @@ async function generateSitemap(url) {
                         
                         // Skip if we've reached max depth
                         if (depth > maxDepth) {
-                            return { success: true, url, childUrls: [] };
+                            return { success: false};
                         }
 
                         // Process the URL
                         const result = await crawlUrl(url);
+
+                        if(!result){
+                            return { success: false };
+                        }
                         
                         // Add current URL to sitemap
                         if (!addedUrls.has(result.url)) {
@@ -322,7 +332,7 @@ async function generateSitemap(url) {
             }
         }
 
-        return builder.end({ prettyPrint: true });
+        return builder.end({ prettyPrint: false });
     } catch (error) {
         console.error('Error in main crawling loop:', error);
         return builder.end({ prettyPrint: true });
