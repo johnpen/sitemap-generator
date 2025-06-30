@@ -12,7 +12,7 @@ const rateLimit = require('express-rate-limit');
 // Add rate limiting to prevent overloading the website
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    max: 50, // limit each IP to 100 requests per windowMs
     standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
     legacyHeaders: false, // Disable the `X-RateLimit-*` headers
     store: new rateLimit.MemoryStore(), // Use memory store for rate limiting
@@ -158,13 +158,22 @@ async function generateSitemap(url, res, maxUrls) {
         const maxConcurrentRequests = 10;
         const rateLimitWindow = 300;
         const maxRequestsPerWindow = 50;
-        const maxDepth = 5;
-        const maxSitemapUrls = maxUrls || 1000; // Default to 1000 if not specified
+        const maxDepth = 10; // Reduced from 5 to 3
+        const maxSitemapUrls = maxUrls || 500; // Reduced default from 1000 to 500
+        const maxUrlsPerBatch = 100; // New limit for URLs processed per batch
         let attempts = 0;
-        let currentDepth = 0;
         let requestCount = 0;
         let lastRequestTime = Date.now();
-       
+        let sitemapUrlCount = 0;
+
+        // Log initial memory usage
+        const initialMemUsage = process.memoryUsage();
+        console.log('Initial memory usage:', {
+            rss: Math.round(initialMemUsage.rss / 1024 / 1024),
+            heapTotal: Math.round(initialMemUsage.heapTotal / 1024 / 1024),
+            heapUsed: Math.round(initialMemUsage.heapUsed / 1024 / 1024),
+            external: Math.round(initialMemUsage.external / 1024 / 1024)
+        }, 'MB');
 
         // Track URL depth
         const urlDepthMap = new Map();
@@ -202,6 +211,7 @@ async function generateSitemap(url, res, maxUrls) {
 
                         // Skip if we've reached max depth
                         if (depth > maxDepth) {
+                            console.log(`Skipping URL ${url} - max depth (${maxDepth}) reached`);
                             return { success: false, url, error: 'Max depth reached' };
                         }
 
@@ -223,8 +233,32 @@ async function generateSitemap(url, res, maxUrls) {
             // Process results
             for (const result of results) {
                 if (result.success) {
+                    // Log memory usage after processing batch
+                    const batchMemUsage = process.memoryUsage();
+                    console.log('Memory usage after batch:', {
+                        rss: Math.round(batchMemUsage.rss / 1024 / 1024),
+                        heapTotal: Math.round(batchMemUsage.heapTotal / 1024 / 1024),
+                        heapUsed: Math.round(batchMemUsage.heapUsed / 1024 / 1024),
+                        external: Math.round(batchMemUsage.external / 1024 / 1024)
+                    }, 'MB', {
+                        urlsToVisit: urlsToVisit.size,
+                        visitedUrls: visitedUrls.size,
+                        urlDepthMap: urlDepthMap.size,
+                        parentChildMap: parentChildMap.size,
+                        parentCounts: parentCounts.size
+                    });
                     // Add child URLs to visit
                     for (const childUrl of result.childUrls) {
+                        // Skip if URL is already visited or in urlsToVisit
+                        if (visitedUrls.has(childUrl)) {
+                            console.log(`Skipping URL ${childUrl} - already visited`);
+                            continue;
+                        }
+                        if (urlsToVisit.has(childUrl)) {
+                            console.log(`Skipping URL ${childUrl} - already in queue`);
+                            continue;
+                        }
+
                         // Check if we've reached max depth
                         const parentUrl = result.url;
                         const parentDepth = urlDepthMap.get(parentUrl) || 0;
@@ -232,29 +266,35 @@ async function generateSitemap(url, res, maxUrls) {
 
                         // Check if we've reached max depth
                         if (childDepth <= maxDepth) {
-                            // Allow unlimited child pages for home page
-                            const isHomePage = parentUrl === url;
-                            
-                            // Check if we've reached max pages per parent (except for home page)
+                            // Check if we've reached max pages per parent
                             const parentCount = parentCounts.get(parentUrl) || 0;
+                            const isHomePage = parentUrl === url;
+
+                            // Allow unlimited child pages for home page
                             const isWithinLimit = isHomePage || parentCount < maxPagesPerParent;
-                            
+
                             if (isWithinLimit) {
-                                // Add URL to visit
-                                if(!urlsToVisit.has(childUrl)){
+                                // Add URL to urlsToVisit if we haven't reached our batch limit
+                                if (urlsToVisit.size < maxUrlsPerBatch) {
                                     urlsToVisit.add(childUrl);
                                     urlDepthMap.set(childUrl, childDepth);
-                                }
-                            
-                                // Track parent-child relationship
-                                if (!parentChildMap.has(parentUrl)) {
-                                    parentChildMap.set(parentUrl, new Set());
-                                }
-                                parentChildMap.get(parentUrl).add(childUrl);
 
-                                // Update parent count
-                                parentCounts.set(parentUrl, parentCount + 1);
+                                    // Track parent-child relationship
+                                    if (!parentChildMap.has(parentUrl)) {
+                                        parentChildMap.set(parentUrl, new Set());
+                                    }
+                                    parentChildMap.get(parentUrl).add(childUrl);
+
+                                    // Update parent count
+                                    parentCounts.set(parentUrl, parentCount + 1);
+                                } else {
+                                    console.log(`Skipping URL ${childUrl} - batch limit (${maxUrlsPerBatch}) reached`);
+                                }
+                            } else {
+                                console.log(`Skipping URL ${childUrl} - max pages per parent (${maxPagesPerParent}) reached`);
                             }
+                        } else {
+                            console.log(`Skipping URL ${childUrl} - max depth (${maxDepth}) reached`);
                         }
                     }
                 } else {
@@ -262,8 +302,33 @@ async function generateSitemap(url, res, maxUrls) {
                 }
             }
 
-            // Remove processed URLs from set
-            urlsBatch.forEach(url => urlsToVisit.delete(url));
+            // Remove processed URLs from all sets to free memory
+            urlsBatch.forEach(url => {
+                urlsToVisit.delete(url);
+                // visitedUrls.delete(url); // Keeping visited URLs for deduplication
+                urlDepthMap.delete(url);
+                if (parentChildMap.has(url)) {
+                    parentChildMap.delete(url);
+                }
+                if (parentCounts.has(url)) {
+                    parentCounts.delete(url);
+                }
+            });
+
+            // Log memory usage after cleanup
+            const cleanupMemUsage = process.memoryUsage();
+            console.log('Memory usage after cleanup:', {
+                rss: Math.round(cleanupMemUsage.rss / 1024 / 1024),
+                heapTotal: Math.round(cleanupMemUsage.heapTotal / 1024 / 1024),
+                heapUsed: Math.round(cleanupMemUsage.heapUsed / 1024 / 1024),
+                external: Math.round(cleanupMemUsage.external / 1024 / 1024)
+            }, 'MB', {
+                urlsToVisit: urlsToVisit.size,
+                visitedUrls: visitedUrls.size,
+                urlDepthMap: urlDepthMap.size,
+                parentChildMap: parentChildMap.size,
+                parentCounts: parentCounts.size
+            });
 
             // If we've processed all URLs, reached max attempts, or reached max sitemap URLs, break the loop
             if (urlsToVisit.size === 0 || attempts >= maxAttempts || sitemapUrlCount >= maxSitemapUrls) {
@@ -272,6 +337,21 @@ async function generateSitemap(url, res, maxUrls) {
 
             attempts++;
         }
+
+        // Log final memory usage before building sitemap
+        const finalMemUsage = process.memoryUsage();
+        console.log('Final memory usage before sitemap:', {
+            rss: Math.round(finalMemUsage.rss / 1024 / 1024),
+            heapTotal: Math.round(finalMemUsage.heapTotal / 1024 / 1024),
+            heapUsed: Math.round(finalMemUsage.heapUsed / 1024 / 1024),
+            external: Math.round(finalMemUsage.external / 1024 / 1024)
+        }, 'MB', {
+            urlsToVisit: urlsToVisit.size,
+            visitedUrls: visitedUrls.size,
+            urlDepthMap: urlDepthMap.size,
+            parentChildMap: parentChildMap.size,
+            parentCounts: parentCounts.size
+        });
 
         // Build the sitemap XML
         const builder = create({
