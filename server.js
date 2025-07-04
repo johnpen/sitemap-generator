@@ -427,7 +427,14 @@ app.post('/generate-sitemap', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('Hello World!');
+    res.send(`
+        <h1>Sitemap Generator</h1>
+        <form action="/generate-sitemap" method="post">
+            <input type="text" name="url" placeholder="Enter URL">
+            <input type="number" name="maxUrls" placeholder="Enter max URLs">
+            <button type="submit">Generate Sitemap</button>
+        </form>
+        `);
 })
 
 // Rate limiting helper function
