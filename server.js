@@ -428,12 +428,61 @@ app.post('/generate-sitemap', async (req, res) => {
 
 app.get('/', (req, res) => {
     res.send(`
-        <h1>Sitemap Generator</h1>
-        <form action="/generate-sitemap" method="post">
-            <input type="text" name="url" placeholder="Enter URL">
-            <input type="number" name="maxUrls" placeholder="Enter max URLs">
-            <button type="submit">Generate Sitemap</button>
-        </form>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sitemap Generator</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+    }
+    input, button, textarea {
+      font-size: 1rem;
+      margin-top: 1rem;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🕸️ Product Sitemap Generator</h1>
+  <label for="urlInput">Enter a URL to crawl:</label><br>
+  <input type="text" id="urlInput" placeholder="https://example.com/shop" style="width: 400px;" />
+  <button onclick="generateSitemap()">Generate Sitemap</button>
+
+  <h2>🧾 Sitemap XML</h2>
+  <textarea id="output" readonly></textarea>
+
+  <script>
+    async function generateSitemap() {
+      const url = document.getElementById('urlInput').value;
+      const output = document.getElementById('output');
+      output.value = 'Loading...';
+
+      try {
+        const response = await fetch('/api/sitemap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const xml = await response.text();
+        output.value = xml;
+      } catch (err) {
+        output.value = 'Error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
         `);
 })
 
