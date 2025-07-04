@@ -464,7 +464,7 @@ app.get('/', (req, res) => {
       output.value = 'Loading...';
 
       try {
-        const response = await fetch('/api/sitemap', {
+        const response = await fetch('/generate-sitemap', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
