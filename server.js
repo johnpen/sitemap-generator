@@ -426,6 +426,10 @@ app.post('/generate-sitemap', async (req, res) => {
     }
 });
 
+app.get('/', (req, res) => {
+    res.send('Hello World!');
+})
+
 // Rate limiting helper function
 const delay = async (waitTime) => {
     return new Promise(resolve => setTimeout(resolve, waitTime));
